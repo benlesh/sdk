@@ -1,0 +1,12 @@
+#!/usr/bin/env node
+'use strict';
+require('../lib/bootstrap-local');
+
+const minimist = require('minimist');
+
+const args = minimist(process.argv.slice(2));
+
+
+switch (args._[0]) {
+  case 'test': require('../scripts/test'); break;
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@angular/schematics-cli",
+  "version": "0.0.0",
+  "description": "CLI tool for Angular",
+  "main": "src/index.js",
+  "trackingCode": "UA-8594346-19",
+  "bin": {
+    "schematics": "./bin/schematics"
+  },
+  "keywords": [
+    "angular",
+    "sdk",
+    "blueprints",
+    "code generation",
+    "schematics",
+    "cli",
+    "Angular SDK"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/angular/sdk.git"
+  },
+  "engines": {
+    "node": ">= 6.9.0",
+    "npm": ">= 3.0.0"
+  },
+  "author": "Angular Authors",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/angular/sdk/issues"
+  },
+  "schematics": "./schematics/collection.json",
+  "homepage": "https://github.com/angular/sdk"
+}

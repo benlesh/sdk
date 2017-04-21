@@ -3,7 +3,6 @@
     "declaration": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "mapRoot": "",
     "module": "commonjs",
     "moduleResolution": "node",
     "noEmitOnError": true,
@@ -13,8 +12,9 @@
     "outDir": "./build",
     "rootDir": ".",
     "skipLibCheck": true,
-    "sourceMap": true,
-    "sourceRoot": "",
+    "inlineSourceMap": true,
+    "sourceRoot": ".",
+    "strictNullChecks": true,
     "target": "es6",
     "lib": [
       "es2015",
@@ -28,12 +28,16 @@
     "types": [
       "jasmine",
       "node"
-    ]
+    ],
+    "paths": {
+      "@angular/schematics": [ "./packages/@angular/schematics/src/index" ]
+    }
   },
   "exclude": [
     "build/**/*",
     "dist/**/*",
     "node_modules/**/*",
-    "tmp/**/*"
+    "tmp/**/*",
+    "packages/@angular/schematics-cli/schematics/**"
   ]
 }
