@@ -11,6 +11,7 @@ jsconfig.json
 typings/
 
 # Misc
+coverage/
 node_modules/
 tmp/
 npm-debug.log*

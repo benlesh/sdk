@@ -2,7 +2,7 @@
   "name": "@angular/schematics-cli",
   "version": "0.0.0",
   "description": "CLI tool for Angular",
-  "main": "src/index.js",
+  "main": "src/cli.js",
   "trackingCode": "UA-8594346-19",
   "bin": {
     "schematics": "./bin/schematics"

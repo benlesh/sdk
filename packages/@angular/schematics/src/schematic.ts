@@ -1,5 +1,10 @@
 import {Tree} from './index';
-import {Schematic, ResolvedSchematicDescription} from './interface';
+import {
+  Schematic,
+  ResolvedSchematicDescription,
+  SchematicContext,
+  MergeStrategy
+} from './interface';
 import {BaseException} from './exception';
 
 import {Observable} from 'rxjs/Observable';
@@ -28,7 +33,11 @@ export class SchematicImpl implements Schematic {
   get path() { return this._descriptor.path; }
   get collection() { return this._collection; }
 
-  call(host: Observable<Tree>): Observable<Tree> {
-    return callRule(this._descriptor.rule, host, { schematic: this, host });
+  call(host: Observable<Tree>, parentContext: Partial<SchematicContext>): Observable<Tree> {
+    return callRule(this._descriptor.rule, host, {
+      schematic: this,
+      host,
+      strategy: parentContext.strategy || MergeStrategy.Default
+    });
   }
 }

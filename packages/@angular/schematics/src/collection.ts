@@ -19,12 +19,12 @@ export class InvalidSchematicException extends BaseException {
 
 
 export class Collection {
-  private _schematics: { [name: string]: () => Schematic | null } = {};
+  private _schematics: { [name: string]: (options: any) => Schematic | null } = {};
 
   constructor(private _description: CollectionDescription,
               private _engine: SchematicEngine) {
     Object.keys(this._description.schematics).forEach(name => {
-      this._schematics[name] = () => this._engine.createSchematic(name, this);
+      this._schematics[name] = (options: any) => this._engine.createSchematic(name, this, options);
     });
   }
 
@@ -43,12 +43,12 @@ export class Collection {
     return this._description.schematics[name];
   }
 
-  createSchematic(name: string): Schematic {
+  createSchematic<T>(name: string, options: T): Schematic {
     if (!(name in this._schematics)) {
       throw new UnknownSchematicNameException(this.name, name);
     }
 
-    const schematic = this._schematics[name]();
+    const schematic = this._schematics[name](options);
     if (!schematic) {
       throw new InvalidSchematicException(name);
     }

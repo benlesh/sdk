@@ -1,7 +1,8 @@
 import {TreeBase} from './base';
-import {FileDoesNotExistException} from './virtual';
+import {FileDoesNotExistException, UpdateRecorderBase} from './virtual';
 import {Action} from '../action';
 import {BaseException} from '../exception';
+import {UpdateRecorder} from '../interface';
 
 
 export class CannotCreateFileException extends BaseException {
@@ -16,30 +17,29 @@ export class NullTree extends TreeBase {
   find(_glob?: string) { return []; }
 
   // Change content of host files.
-  insertContentLeft(path: string, _index: number, _content: Buffer | string) {
+  beginUpdate(path: string): never {
     throw new FileDoesNotExistException(path);
   }
-  insertContentRight(path: string, _index: number, _content: Buffer | string) {
-    throw new FileDoesNotExistException(path);
-  }
-  removeContent(path: string, _index: number, _length: number) {
-    throw new FileDoesNotExistException(path);
+  commitUpdate(record: UpdateRecorder): never {
+    throw new FileDoesNotExistException(record instanceof UpdateRecorderBase
+      ? record.path
+      : '<unknown>');
   }
 
   // Change structure of the host.
-  copy(path: string, _to: string) {
+  copy(path: string, _to: string): never {
     throw new FileDoesNotExistException(path);
   }
-  delete(path: string) {
+  delete(path: string): never {
     throw new FileDoesNotExistException(path);
   }
-  create(path: string, _content: Buffer | string) {
+  create(path: string, _content: Buffer | string): never {
     throw new CannotCreateFileException(path);
   }
-  rename(path: string, _to: string) {
+  rename(path: string, _to: string): never {
     throw new FileDoesNotExistException(path);
   }
-  overwrite(path: string, _content: Buffer | string) {
+  overwrite(path: string, _content: Buffer | string): never {
     throw new FileDoesNotExistException(path);
   }
 

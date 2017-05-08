@@ -59,7 +59,7 @@ const codeMap = new Map<string, { code: string, map: SourceMapConsumer }>();
 
     // Keep the consumer from the original source map, because the reports from Istanbul are
     // already mapped against the code.
-    codeMap.set(filename, { code: instrumentedCode, original: code, map: consumer });
+    codeMap.set(filename, { code: instrumentedCode, map: consumer });
   }
 
   return instrumentedCode;

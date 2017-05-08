@@ -9,17 +9,18 @@ import {Collection} from './collection';
 
 
 export enum MergeStrategy {
-  Overwrite = 0,  // Overwrite the file.
-  Error = 1,  // Error out if 2 files have the same path.
+  Error = -1,  // Error out if 2 files have the same path.
+  Default = 0,  // Uses the default strategy.
+  Overwrite = 1,  // Overwrite the file.
   ContentOnly = 2,  // Only apply content changes from the second tree (skip creation)
 }
 
 
 export interface UpdateRecorder {
   // These just record changes.
-  insertLeft(index, content): UpdateRecorder;
-  insertRight(index, content): UpdateRecorder;
-  remove(index, length): UpdateRecorder;
+  insertLeft(index: number, content: Buffer | string): UpdateRecorder;
+  insertRight(index: number, content: Buffer | string): UpdateRecorder;
+  remove(index: number, length: number): UpdateRecorder;
 }
 
 
@@ -34,7 +35,7 @@ export abstract class Tree {
   // Change content of host files.
   abstract overwrite(path: string, content: Buffer | string): void;
   abstract beginUpdate(path: string): UpdateRecorder;
-  abstract commitUpdate(record: UpdateRecorder);
+  abstract commitUpdate(record: UpdateRecorder): void;
 
   // Structural methods.
   abstract copy(from: string, to: string): void;
@@ -48,8 +49,8 @@ export abstract class Tree {
 
   // Combinatorics
   // Creates a copy of this host.
-  static branch(tree: Tree, glob = '**', resolved = false): Tree {
-    return treeBranchImpl(tree, glob, resolved);
+  static branch(tree: Tree, glob = '**'): Tree {
+    return treeBranchImpl(tree, glob);
   }
 
   // Creates two copies of this host that are disjoint, based on glob.
@@ -60,7 +61,10 @@ export abstract class Tree {
   // Creates a new host path 2 hosts.
   static merge(tree: Tree,
                other: Tree,
-               strategy: MergeStrategy = MergeStrategy.Error): Tree {
+               strategy: MergeStrategy = MergeStrategy.Default): Tree {
+    if (strategy == MergeStrategy.Default) {
+      strategy = MergeStrategy.Error;
+    }
     return treeMergeImpl(tree, other, strategy);
   }
 }
@@ -72,13 +76,14 @@ export interface Schematic {
   readonly path: string;
   readonly collection: Collection;
 
-  call(host: Observable<Tree>): Observable<Tree>;
+  call(host: Observable<Tree>, parentContext: Partial<SchematicContext>): Observable<Tree>;
 }
 
 
 export interface SchematicContext {
   schematic: Schematic;
   host: Observable<Tree>;
+  strategy: MergeStrategy;
 }
 
 
