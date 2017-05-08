@@ -12,6 +12,6 @@ export type SchematicOptions = {
 export function schematic(options: SchematicOptions): Rule {
   return (host: Tree, context: SchematicContext) => {
     const schematic = context.schematic.collection.createSchematic(options.name, options.options);
-    return schematic.call(Observable.of(Tree.branch(host)));
+    return schematic.call(Observable.of(Tree.branch(host)), context);
   };
 }

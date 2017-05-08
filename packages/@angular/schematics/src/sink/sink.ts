@@ -1,6 +1,5 @@
 import { Action, UnknownActionException } from '../action';
 import {
-  ContentIndexOutOfBoundException,
   FileAlreadyExistException,
   FileDoesNotExistException,
   VirtualTree,
@@ -73,25 +72,6 @@ export abstract class SimpleSinkBase implements Sink {
       case 'd':
         return this._validateFileExists(action.path)
           .then(b => { if (!b) { throw new FileDoesNotExistException(action.path); } });
-      // case 'il':
-      // case 'ir':
-      //   return this._validateFileExists(action.path)
-      //     .then(b => { if (!b) { throw new FileDoesNotExistException(action.path); } })
-      //     .then(() => this._validateFileIndex(action.path, action.index))
-      //     .then(b => { if (!b) {
-      //       throw new ContentIndexOutOfBoundException(action.path, action.index);
-      //     } });
-      // case 'x':
-      //   return this._validateFileExists(action.path)
-      //     .then((b) => { if (!b) { throw new FileDoesNotExistException(action.path); } })
-      //     .then(() => this._validateFileIndex(action.path, action.index))
-      //     .then(b => { if (!b) {
-      //       throw new ContentIndexOutOfBoundException(action.path, action.index);
-      //     } })
-      //     .then(() => this._validateFileIndex(action.path, action.index + action.length))
-      //     .then(b => { if (!b) {
-      //       throw new ContentIndexOutOfBoundException(action.path, action.index + action.length);
-      //     } });
 
       default: throw new UnknownActionException(action);
     }
@@ -126,9 +106,6 @@ export abstract class SimpleSinkBase implements Sink {
           case 'c': return this._createFile(action.path, action.content);
           case 'r': return this._renameFile(action.path, action.to);
           case 'd': return this._deleteFile(action.path);
-          // case 'il': return this._insertContentLeft(action.path, action.index, action.content);
-          // case 'ir': return this._insertContentRight(action.path, action.index, action.content);
-          // case 'x': return this._removeContent(action.path, action.index, action.length);
         }
       });
   }

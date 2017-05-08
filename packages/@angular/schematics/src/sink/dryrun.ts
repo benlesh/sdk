@@ -6,14 +6,35 @@ import {Subject} from 'rxjs';
 
 
 
-export interface DryRunEvent {
-  kind: 'delete' | 'create' | 'update' | 'rename';
+export interface DryRunDeleteEvent {
+  kind: 'delete';
   absolutePath: string;
   path: string;
-  absoluteTo?: string;
-  to?: string;
-  content: Buffer | null;
 }
+export interface DryRunCreateEvent {
+  kind: 'create';
+  absolutePath: string;
+  path: string;
+  content: Buffer;
+}
+export interface DryRunUpdateEvent {
+  kind: 'update';
+  absolutePath: string;
+  path: string;
+  content: Buffer;
+}
+export interface DryRunRenameEvent {
+  kind: 'rename';
+  absolutePath: string;
+  path: string;
+  absoluteTo: string;
+  to: string;
+}
+
+export type DryRunEvent = DryRunDeleteEvent
+                        | DryRunCreateEvent
+                        | DryRunUpdateEvent
+                        | DryRunRenameEvent;
 
 
 export class DryRunSink extends VirtualFileSystemSink {

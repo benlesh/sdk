@@ -3,10 +3,8 @@
   "version": "0.0.0",
   "description": "CLI tool for Angular",
   "main": "src/index.js",
+  "typings": "src/index.d.ts",
   "trackingCode": "UA-8594346-19",
-  "bin": {
-    "schematics": "./bin/schematics"
-  },
   "keywords": [
     "angular",
     "sdk",

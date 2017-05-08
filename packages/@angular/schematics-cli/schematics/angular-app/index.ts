@@ -8,5 +8,5 @@ export default function(options: any): Rule {
       template({ utils: stringUtils, ...options }),
       move(options.sourceDir),
     ])
-  ], MergeStrategy.Overwrite);
+  ]);
 };

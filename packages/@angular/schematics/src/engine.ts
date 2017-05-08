@@ -9,7 +9,9 @@ import {SchematicImpl} from './schematic';
 
 export interface SchematicEngineOptions {
   loadCollection(name: string): CollectionDescription | null;
-  loadSchematic(name: string, collection: Collection): ResolvedSchematicDescription | null;
+  loadSchematic<T>(name: string,
+                   collection: Collection,
+                   options: T): ResolvedSchematicDescription | null;
 }
 
 
@@ -26,8 +28,8 @@ export class SchematicEngine {
     return new Collection(description, this);
   }
 
-  createSchematic(name: string, collection: Collection): Schematic | null {
-    const description = this._options.loadSchematic(name, collection);
+  createSchematic<T>(name: string, collection: Collection, options: T): Schematic | null {
+    const description = this._options.loadSchematic<T>(name, collection, options);
     if (!description) {
       return null;
     }

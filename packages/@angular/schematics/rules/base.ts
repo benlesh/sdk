@@ -80,24 +80,24 @@ export function apply(source: Source, rules: Rule[]): Source {
 }
 
 
-export function merge(sources: Source[], strategy: MergeStrategy = MergeStrategy.Error): Source {
+export function merge(sources: Source[], strategy: MergeStrategy = MergeStrategy.Default): Source {
   return (context: SchematicContext) => {
     return sources.reduce((acc: Observable<Tree>, curr: Source) => {
       const result = callSource(curr, context);
       return acc.mergeMap(x => {
-        return result.map(y => Tree.merge(x, y, strategy));
+        return result.map(y => Tree.merge(x, y, strategy || context.strategy));
       });
     }, Observable.of(Tree.empty()));
   };
 }
 
 
-export function mergeWith(sources: Source[], strategy: MergeStrategy = MergeStrategy.Error): Rule {
+export function mergeWith(sources: Source[], strategy: MergeStrategy = MergeStrategy.Default): Rule {
   return (tree: Tree, context: SchematicContext) => {
     return sources.reduce((acc: Observable<Tree>, curr: Source) => {
       const result = callSource(curr, context);
       return acc.mergeMap(x => {
-        return result.map(y => Tree.merge(x, y, strategy));
+        return result.map(y => Tree.merge(x, y, strategy || context.strategy));
       });
     }, Observable.of(tree));
   };

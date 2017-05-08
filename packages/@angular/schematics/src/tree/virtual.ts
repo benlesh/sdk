@@ -79,11 +79,11 @@ export class UpdateRecorderBase implements UpdateRecorder {
   get path() { return this._path; }
 
   // These just record changes.
-  insertLeft(index: number, content: Buffer | number): UpdateRecorder {
+  insertLeft(index: number, content: Buffer | string): UpdateRecorder {
     this._content.insertLeft(index, typeof content == 'string' ? new Buffer(content) : content);
     return this;
   }
-  insertRight(index: number, content: Buffer | number): UpdateRecorder {
+  insertRight(index: number, content: Buffer | string): UpdateRecorder {
     this._content.insertRight(index, typeof content == 'string' ? new Buffer(content) : content);
     return this;
   }
@@ -94,7 +94,7 @@ export class UpdateRecorderBase implements UpdateRecorder {
 
   apply(content: Buffer): Buffer {
     if (!content.equals(this._content.original)) {
-      throw new ContentHasMutatedException(entry.path);
+      throw new ContentHasMutatedException(this.path);
     }
     return this._content.generate();
   }
@@ -105,7 +105,7 @@ export class VirtualTree extends TreeBase {
   protected _actions: Action[] = [];
   protected _cacheMap = new Map<string, FileEntry>();
 
-  constructor(from: Tree | null = null, onlyPaths: string[] | null = null, shallow = false) {
+  constructor(from: Tree | null = null, onlyPaths: string[] | null = null) {
     super();
 
     // Make a copy of the internal cache. Wheeee!
@@ -119,14 +119,7 @@ export class VirtualTree extends TreeBase {
           }
         }
 
-        if (shallow) {
-          this._actions = [];
-          for (const [path, entry] of this._cacheMap.entries()) {
-            this._actions.push({ kind: 'f', path, content: entry.content });
-          }
-        } else {
-          this._actions = [...from.actions.filter(action => files.some(p => p == action.path))];
-        }
+        this._actions = [...from.actions.filter(action => files.some(p => p == action.path))];
       } else {
         for (const path of files) {
           const content = from.read(path);
@@ -362,8 +355,8 @@ export class VirtualTree extends TreeBase {
 
 
   // Combinatorics
-  static branch(map: Tree, glob: string, shallow: boolean): VirtualTree {
-    return new VirtualTree(map, map.find(glob), shallow);
+  static branch(map: Tree, glob: string): VirtualTree {
+    return new VirtualTree(map, map.find(glob));
   }
 
   // Partition this host into 2 copies.
@@ -398,7 +391,7 @@ export class VirtualTree extends TreeBase {
           if (tree.exists(action.path)) {
             switch (strategy) {
               case MergeStrategy.Error: throw new FileAlreadyExistException(action.path);
-              case MergeStrategy.Overwrite: tree.overwrite(action.path, action.content);
+              case MergeStrategy.Overwrite: tree.overwrite(action.path, action.content); break;
             }
           } else {
             tree.create(action.path, action.content);

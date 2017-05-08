@@ -27,7 +27,7 @@ export function url(urlString: string): Source {
         }
       case 'host:':
         return context.host.map(tree => {
-          return Tree.branch(tree, (url.path || '') + '/**', true);
+          return Tree.branch(tree, (url.path || '') + '/**');
         });
       case 'null:':
         return Observable.of(new EmptyTree());
