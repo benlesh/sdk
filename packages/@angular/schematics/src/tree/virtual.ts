@@ -1,12 +1,7 @@
 import {TreeBase} from './base';
 import {
   Action,
-  CreateFileAction,
-  DeleteFileAction,
-  FileExistsAction,
-  isContentAction,
-  OverwriteFileAction,
-  RenameFileAction,
+  ActionArray,
   UnknownActionException
 } from '../action';
 import {BaseException} from '../exception';
@@ -23,11 +18,6 @@ export class FileDoesNotExistException extends BaseException {
 }
 export class FileAlreadyExistException extends BaseException {
   constructor(path: string) { super(`Path "${path}" already exist.`); }
-}
-export class ContentIndexOutOfBoundException extends BaseException {
-  constructor(path: string, index: number) {
-    super(`Index ${index} is outside the boundary of content at path "${path}".`);
-  }
 }
 export class ContentHasMutatedException extends BaseException {
   constructor(path: string) {
@@ -102,7 +92,7 @@ export class UpdateRecorderBase implements UpdateRecorder {
 
 
 export class VirtualTree extends TreeBase {
-  protected _actions: Action[] = [];
+  protected _actions = new ActionArray();
   protected _cacheMap = new Map<string, FileEntry>();
 
   constructor(from: Tree | null = null, onlyPaths: string[] | null = null) {
@@ -111,31 +101,30 @@ export class VirtualTree extends TreeBase {
     // Make a copy of the internal cache. Wheeee!
     if (from) {
       const files = onlyPaths || from.find();
-      if (from instanceof TreeBase) {
-        for (const path of files) {
-          const content = from.read(path);
-          if (content) {
-            this._cacheMap.set(path, new SimpleFileEntry(path, content));
-          }
-        }
-
-        this._actions = [...from.actions.filter(action => files.some(p => p == action.path))];
-      } else {
-        for (const path of files) {
-          const content = from.read(path);
-          if (content) {
-            this.create(path, content);
-          }
+      for (const path of files) {
+        const content = from.read(path);
+        if (content) {
+          this.create(path, content);
+          this._actions.exists(path);
         }
       }
     }
   }
 
+  /**
+   * Normalize the path. Made available to subclasses to overloader.
+   * @param path The path to normalize.
+   * @returns {string} A path that is resolved and normalized.
+   */
   protected _normalizePath(path: string) {
     return normalizePath(path);
   }
 
-  get files() { return [...this._cacheMap.keys()]; }
+  /**
+   * A list of file names contained by this Tree.
+   * @returns {[string]} File names.
+   */
+  get files(): string[] { return [...this._cacheMap.keys()]; }
 
   find(glob = '**'): string[] {
     // Fast track the default case.
@@ -187,71 +176,11 @@ export class VirtualTree extends TreeBase {
       throw new FileDoesNotExistException(path);
     }
 
-    // Optimize the actions to remove duplicated information. We go until either we meet a
-    // create or overwrite or rename action with the proper path, then replace the kind of this
-    // one and remove the old ones. Along the way we remove all content affecting actions.
-    let kind = 'o';
-    for (let i = this._actions.length - 1; i >= 0; i--) {
-      const action = this._actions[i];
-      if (isContentAction(action)) {
-        this._actions.splice(i, 1);
-      } else if (action.kind == 'r' && action.to == path) {
-        // When at the first rename.
-        // TODO: consider an optimization where we continue going on.
-        break;
-      } else if (action.kind == 'c' && action.path == path) {
-        kind = 'c';
-        this._actions.splice(i, 1);
-        break;
-      }
-    }
-
     if (typeof content == 'string') {
       content = new Buffer(content, 'utf-8');
     }
 
-    this._actions.push({ kind, path, content } as OverwriteFileAction | CreateFileAction);
-    this._cacheMap.set(path, new SimpleFileEntry(path, content));
-  }
-
-  // Change structure of the host.
-  protected _lazyFileExists(path: string, loader: (path?: string) => Buffer) {
-    path = this._normalizePath(path);
-    const entry = this._cacheMap.get(path);
-    if (entry) {
-      return;
-    }
-
-    const newEntry = new LazyFileEntry(path, loader);
-    const action: FileExistsAction = {
-      kind: 'f',
-      path,
-      get content() { return newEntry.content; }
-    };
-    this._actions.push(action);
-    this._cacheMap.set(path, newEntry);
-  }
-
-  protected _fileExists(path: string, content: Buffer): void {
-    path = this._normalizePath(path);
-    const entry = this._cacheMap.get(path);
-    if (entry) {
-      return;
-    }
-
-    const action: FileExistsAction = { kind: 'f', path, content };
-    this._actions.push(action);
-    this._cacheMap.set(path, new SimpleFileEntry(path, content));
-  }
-
-  protected _overwriteFile(path: string, content: Buffer): void {
-    path = this._normalizePath(path);
-    if (!this._cacheMap.has(path)) {
-      throw new FileDoesNotExistException(path);
-    }
-
-    const action: FileExistsAction = { kind: 'f', path, content };
-    this._actions.push(action);
+    // Update the action buffer.
     this._cacheMap.set(path, new SimpleFileEntry(path, content));
   }
 
@@ -263,9 +192,17 @@ export class VirtualTree extends TreeBase {
     if (typeof content == 'string') {
       content = new Buffer(content);
     }
-    const action: CreateFileAction = { kind: 'c', path, content: content as Buffer };
-    this._actions.push(action);
+    this._actions.create(path, content);
     this._cacheMap.set(path, new SimpleFileEntry(path, content as Buffer));
+  }
+  _lazyCreate(path: string, loader: (p: string) => Buffer) {
+    path = this._normalizePath(path);
+    if (this._cacheMap.has(path)) {
+      throw new FileAlreadyExistException(path);
+    }
+    const content = loader(path);
+    this._actions.create(path, content);
+    this._cacheMap.set(path, new SimpleFileEntry(path, content));
   }
 
   copy(path: string, to: string): void {
@@ -290,27 +227,7 @@ export class VirtualTree extends TreeBase {
       throw new FileAlreadyExistException(to);
     }
 
-    // Optimize rename by changing the action.
-    let shouldGenerateNewaction = true;
-    for (let i = this._actions.length - 1; i >= 0; i--) {
-      const action = this._actions[i];
-      if (action.kind == 'c' && action.path == path) {
-        action.path = to;
-        shouldGenerateNewaction = false;
-        break;
-      } else if (action.kind == 'r' && action.to == path) {
-        action.to = to;
-        shouldGenerateNewaction = false;
-        break;
-      } else if (action.path == path) {
-        break;
-      }
-    }
-
-    if (shouldGenerateNewaction) {
-      const action: RenameFileAction = { kind: 'r', path, to };
-      this._actions.push(action);
-    }
+    this._actions.rename(path, to);
     this._cacheMap.set(to, this._cacheMap.get(path) !);
     this._cacheMap.delete(path);
   }
@@ -321,36 +238,43 @@ export class VirtualTree extends TreeBase {
       throw new FileDoesNotExistException(path);
     }
 
-    for (let i = this._actions.length - 1; i >= 0; i--) {
-      const action = this._actions[i];
-      if (action.path !== path || (action.kind == 'r' && action.to !== path)) {
-        continue;
-      }
-
-      switch (action.kind) {
-        case 'f': break;
-        case 'c':
-          // It's as if it never existed.
-          for (let j = i; j < this._actions.length; j++) {
-            if (this._actions[j].path == path) {
-              this._actions.splice(j, 1);
-              j--;
-            }
-          }
-          return;
-        case 'r':
-          break;
-      }
-    }
-
-    const action: DeleteFileAction = { kind: 'd', path };
-    this._actions.push(action);
+    this._actions.delete(path);
     this._cacheMap.delete(path);
+  }
+
+  apply(action: Action, strategy: MergeStrategy) {
+    switch (action.kind) {
+      case 'f':
+        if (!this.exists(action.path)) {
+          this._actions.exists(action.path);
+        }
+        break;
+
+      case 'o':
+        this.overwrite(action.path, action.content);
+        break;
+
+      case 'c':
+        if (this.exists(action.path)) {
+          switch (strategy) {
+            case MergeStrategy.Error: throw new FileAlreadyExistException(action.path);
+            case MergeStrategy.Overwrite: this.overwrite(action.path, action.content); break;
+          }
+        } else {
+          this.create(action.path, action.content);
+        }
+        break;
+
+      case 'r': this.rename(action.path, action.to); break;
+      case 'd': this.delete(action.path); break;
+
+      default: throw new UnknownActionException(action);
+    }
   }
 
   // Returns an ordered list of Action to get this host.
   get actions(): Action[] {
-    return [...this._actions];
+    return this._actions.toArray();
   }
 
 
@@ -375,36 +299,7 @@ export class VirtualTree extends TreeBase {
                             strategy: MergeStrategy) {
     // Replay actions of the other map.
     for (let action of other.actions) {
-      if (strategy == MergeStrategy.ContentOnly && !isContentAction(action)) {
-        continue;
-      }
-
-      switch (action.kind) {
-        case 'f':
-          tree._fileExists(action.path, action.content);
-          break;
-        case 'o':
-          tree.overwrite(action.path, action.content);
-          break;
-
-        case 'c':
-          if (tree.exists(action.path)) {
-            switch (strategy) {
-              case MergeStrategy.Error: throw new FileAlreadyExistException(action.path);
-              case MergeStrategy.Overwrite: tree.overwrite(action.path, action.content); break;
-            }
-          } else {
-            tree.create(action.path, action.content);
-          }
-          break;
-        case 'r': tree.rename(action.path, action.to); break;
-        case 'd': tree.delete(action.path); break;
-        // case 'il': tree.insertContentLeft(action.path, action.index, action.content); break;
-        // case 'ir': tree.insertContentRight(action.path, action.index, action.content); break;
-        // case 'x': tree.removeContent(action.path, action.index, action.length); break;
-
-        default: throw new UnknownActionException(action);
-      }
+      tree.apply(action, strategy);
     }
   }
 

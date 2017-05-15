@@ -1,35 +1,30 @@
 import {VirtualTree} from './virtual';
-
-import {statSync, readdirSync, readFileSync} from 'fs';
-import {join, resolve} from 'path';
 import {normalizePath} from '../utility/path';
 
 
-export class FileSystemTree extends VirtualTree {
-  constructor(protected _path: string, shouldInitialize = true) {
-    super();
-    if (process.platform == 'win32') {
-      this._path = _path.replace(/\\/g, '/').replace(/^\w:/, '/');
-    }
-    this._path = normalizePath(this._path.replace(/\/$/, ''));
+export interface FileSystemTreeHost {
+  listDirectory: (path: string) => string[];
+  isDirectory: (path: string) => boolean;
+  readFile: (path: string) => Buffer;
+}
 
-    if (shouldInitialize) {
-      const list: string[] = new Array(32);
-      this._recursiveFileList(_path, list);
-      list.forEach(fullName => {
-        const entryName = fullName.substr(this._path.length);
-        const systemName = resolve(fullName);
-        this.create(entryName, readFileSync(systemName));
-      });
-    }
+
+export class FileSystemTree extends VirtualTree {
+  constructor(private _host: FileSystemTreeHost, path = '') {
+    super();
+
+    const list: string[] = new Array(32);
+    this._recursiveFileList(path, list);
+    list.forEach(fullName => {
+      this._lazyCreate(fullName, (name: string) => _host.readFile(name));
+    });
   }
 
   protected _recursiveFileList(path: string, list: string[] = []) {
-    function recurse(path: string) {
-      for (const name of readdirSync(path)) {
-        const fullName = join(path, name);
-        const systemName = resolve(fullName);
-        if (statSync(systemName).isDirectory()) {
+    function recurse(p: string) {
+      for (const name of this._host.listDirectory(p)) {
+        const fullName = normalizePath(p + '/' + name);
+        if (this._host.isDirectory(fullName)) {
           recurse(fullName);
         } else {
           list.push(fullName);
@@ -37,7 +32,8 @@ export class FileSystemTree extends VirtualTree {
       }
     }
 
-    if (statSync(resolve(path)).isDirectory()) {
+    path = normalizePath(path);
+    if (this._host.isDirectory(path)) {
       recurse(path);
     } else {
       list.push(path);

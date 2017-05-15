@@ -1,16 +1,17 @@
-import {Tree} from './index';
+import {Collection} from './collection';
+import {SchematicContextImpl} from './context';
 import {
   Schematic,
   ResolvedSchematicDescription,
   SchematicContext,
-  MergeStrategy
+  MergeStrategy,
+  Tree
 } from './interface';
 import {BaseException} from './exception';
+import {callRule} from '../rules/base';
 
 import {Observable} from 'rxjs/Observable';
 import 'rxjs/add/observable/fromPromise';
-import {callRule} from '../rules/base';
-import {Collection} from './collection';
 
 
 export class InvalidSchematicsNameException extends BaseException {
@@ -33,11 +34,9 @@ export class SchematicImpl implements Schematic {
   get path() { return this._descriptor.path; }
   get collection() { return this._collection; }
 
-  call(host: Observable<Tree>, parentContext: Partial<SchematicContext>): Observable<Tree> {
-    return callRule(this._descriptor.rule, host, {
-      schematic: this,
+  call(parentContext: Partial<SchematicContext>): Observable<Tree> {
+    return callRule(this._descriptor.rule,
       host,
-      strategy: parentContext.strategy || MergeStrategy.Default
-    });
+      new SchematicContextImpl(this, host, parentContext.strategy || MergeStrategy.Default));
   }
 }

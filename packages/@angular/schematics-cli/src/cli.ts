@@ -3,7 +3,11 @@ import {
   SchematicEngine,
   DryRunSink,
   FileSystemSink,
-  HostFileSystemEntryMap,
+  FileSystemTreeHost,
+  FileSystemTree,
+  InitialHostFileSystemTree,
+  MergeStrategy,
+  SchematicContext,
   Tree,
   InvalidSchematicException,
   CollectionDescription,
@@ -17,7 +21,9 @@ import {Observable} from 'rxjs/Observable';
 import {ExportStringRef} from './export-ref';
 
 import {SchemaClassFactory} from '@ngtools/json-schema';
-import {MergeStrategy} from '../../schematics/src/interface';
+
+import * as fs from 'fs';
+import {Url} from 'url';
 
 
 require('source-map-support').install({
@@ -27,6 +33,7 @@ require('source-map-support').install({
 
 
 const join = posix.join;
+const resolve = posix.resolve;
 
 function usage() {
   console.log(`
@@ -110,6 +117,28 @@ const engine = new SchematicEngine({
 });
 
 
+class Host implements FileSystemTreeHost {
+  constructor(private _root: string) {}
+
+  listDirectory(path: string) {
+    return fs.readdirSync(join(this._root, path));
+  }
+  isDirectory(path: string) {
+    return fs.statSync(join(this._root, path)).isDirectory();
+  }
+  readFile(path: string) {
+    return fs.readFileSync(join(this._root, path));
+  }
+}
+
+// Register loading from files.
+engine.registerUrlProtocolHandler('file', (url: Url) => {
+  return (context: SchematicContext) => {
+    const root = resolve(context.schematic.path, url.path);
+    return new FileSystemTree(new Host(root));
+  };
+});
+
 const collection = engine.createCollection(collectionName);
 if (collection === null) {
   console.log(`Invalid collection name: "${collectionName}".`);
@@ -121,7 +150,6 @@ if (argv.listCollection) {
 }
 
 const schematic = collection !.createSchematic(schematicName, argv);
-
 
 
 const dryRunSink = new DryRunSink();
@@ -145,21 +173,8 @@ dryRunSink.reporter.subscribe(event => {
 });
 
 const force = argv['force'];
-schematic.call(Observable.of(new HostFileSystemEntryMap(process.cwd())), {
-  strategy: force ? MergeStrategy.Overwrite : MergeStrategy.Default
-})
-  .toPromise()
-  .then((tree: Tree) => {
-    if (!argv['dry-run']) {
-      return fsSink
-        .commit(tree, argv['force'])
-        .then(() => tree);
-    }
-    return tree;
-  })
-  .then((tree: Tree) => {
-    dryRunSink.commit(tree, true);
-  })
-  .catch((err: Error) => {
-    console.error(err);
-  });
+Observable.of(new InitialHostFileSystemTree(new Host(process.cwd())))
+  .let(schematic({ strategy: force ? MergeStrategy.Overwrite : MergeStrategy.Default }))
+  .do((tree: Tree) => !argv['dry-run'] ? null : fsSink.commit(tree))
+  .do((tree: Tree) => dryRunSink.commit(tree, true))
+  .subscribe({ error(err: Error) { console.error(err); } });

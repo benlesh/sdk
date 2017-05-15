@@ -1,18 +1,18 @@
-import {Observable} from 'rxjs';
+import {Collection} from './collection';
+import {Engine} from './engine';
 import {
   treeBranchImpl,
   treeEmptyImpl,
   treeMergeImpl,
   treePartitionImpl
 } from './tree/static-impl';
-import {Collection} from './collection';
+import {Observable} from 'rxjs';
 
 
 export enum MergeStrategy {
   Error = -1,  // Error out if 2 files have the same path.
   Default = 0,  // Uses the default strategy.
   Overwrite = 1,  // Overwrite the file.
-  ContentOnly = 2,  // Only apply content changes from the second tree (skip creation)
 }
 
 
@@ -76,14 +76,15 @@ export interface Schematic {
   readonly path: string;
   readonly collection: Collection;
 
-  call(host: Observable<Tree>, parentContext: Partial<SchematicContext>): Observable<Tree>;
+  call(parentContext: Partial<SchematicContext>): Observable<Tree>;
 }
 
 
 export interface SchematicContext {
-  schematic: Schematic;
-  host: Observable<Tree>;
-  strategy: MergeStrategy;
+  readonly engine: Engine;
+  readonly schematic: Schematic;
+  readonly host: Observable<Tree>;
+  readonly strategy: MergeStrategy;
 }
 
 
